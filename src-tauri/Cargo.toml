@@ -25,6 +25,8 @@ tauri = { version = "2.1.0", features = [] }
 tauri-plugin-log = "2.0.0-rc"
 rusqlite = "0.32.1"
 tokio = "1.41.1"
+tauri-plugin-dialog = "2.0.3"
+sha2 = "0.10.8"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

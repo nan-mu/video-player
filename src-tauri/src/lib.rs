@@ -36,6 +36,7 @@ pub fn run() {
             }
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![update_record])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
             error!("tauri运行时错误: {e}");
@@ -44,16 +45,17 @@ pub fn run() {
 }
 
 struct AppState {
-    tx: std::sync::Arc<tokio::sync::mpsc::Sender<(String, String)>>,
+    tx: std::sync::Arc<tokio::sync::mpsc::Sender<(String, String, String)>>,
 }
 #[tauri::command]
 async fn update_record(
     state: tauri::State<'_, AppState>,
     hash: String,
+    path: String,
     recode: String,
 ) -> Result<(), String> {
     let tx = state.tx.clone();
-    tx.send((hash, recode)).await.map_err(|e| {
+    tx.send((hash, path, recode)).await.map_err(|e| {
         error!("发送观看记录信息失败: {e}");
         e.to_string()
     })?;
@@ -62,26 +64,65 @@ async fn update_record(
 
 /// 更新数据库内视频的观看记录，格式为时间戳，这个等前端写出来看看什么格式
 async fn handle_record(
-    mut rx: tokio::sync::mpsc::Receiver<(String, String)>,
+    mut rx: tokio::sync::mpsc::Receiver<(String, String, String)>,
     db: std::sync::Arc<tokio::sync::Mutex<rusqlite::Connection>>,
 ) {
-    while let Some((hash, record)) = rx.recv().await {
-        let db = db.lock().await;
-        db.execute(
-            "UPDATE Video SET record = ?2 WHERE hash = ?1;",
-            rusqlite::params![hash, record],
-        )
-        .unwrap_or_else(|e| {
-            error!("更新视频观看记录失败: {}", e);
-            panic!("缺失关键文件");
-        });
+    while let Some((hash, path, record)) = rx.recv().await {
+        if hash.is_empty() {
+            let hash = calculate_file_hash(&path).await.unwrap_or_else(|e| {
+                error!("计算文件哈希失败: {}", e);
+                "NOHASH".to_string()
+            });
+            let db = db.lock().await;
+            db.execute(
+                "INSERT INTO Video (hash, path, record) VALUES (?1, ?2, ?3) \
+                ON CONFLICT(hash) DO UPDATE SET path = excluded.path, record = excluded.record;",
+                rusqlite::params![hash, path, record],
+            )
+            .unwrap_or_else(|e| {
+                error!("插入新视频观看记录失败: {}", e);
+                0
+            });
+        } else {
+            let db = db.lock().await;
+            db.execute(
+                "UPDATE Video SET record = ?2 WHERE hash = ?1;",
+                rusqlite::params![hash, record],
+            )
+            .unwrap_or_else(|e| {
+                error!("更新视频观看记录失败: {}", e);
+                0
+            });
+        }
     }
 }
 
-struct Video {
-    hash: String,
-    path: std::path::PathBuf,
-    record: String,
+async fn calculate_file_hash(file_path: &str) -> std::io::Result<String> {
+    use sha2::Digest;
+    use std::io::Read;
+
+    let mut file = std::fs::File::open(file_path)?;
+    let mut hasher = sha2::Sha256::new();
+    // 读取文件的前 64 KB
+    const HASH_SIZE: usize = 64 * 1024;
+    let mut buffer = vec![0u8; HASH_SIZE];
+    let bytes_read = file.read(&mut buffer)?;
+    hasher.update(&buffer[..bytes_read]);
+
+    // 获取文件的大小
+    let file_size = file.metadata()?.len();
+
+    // 如果文件大于 64 KB，读取最后 64 KB
+    if file_size > HASH_SIZE as u64 {
+        let mut buffer = vec![0u8; HASH_SIZE];
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::End(-(HASH_SIZE as i64)))?;
+        let bytes_read = file.read(&mut buffer)?;
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    // 完成哈希计算
+    let result = hasher.finalize();
+    Ok(format!("{:x}", result))
 }
 
 fn create_db<P: AsRef<std::path::Path>>(db_path: P) -> rusqlite::Connection {
