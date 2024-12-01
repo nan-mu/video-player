@@ -45,8 +45,11 @@
                 :url="item.url" -->
                 <videoItem v-for="(item, index) in videoItems" 
                     :key="index" 
-                    :video_name="item.name" 
-                    :file_name="item.path"
+                    :name="item.name" 
+                    :path="item.path"
+                    :type="item.type"
+                    :size="item.size"
+                    :time="item.time"
                 class="mb-5" />
             </div>
         </main>
@@ -58,7 +61,7 @@ import { Disclosure } from '@headlessui/vue'
 import videoItem from './components/videoItem.vue';
 
 const videoItems = [
-    { name: "test", path: "/test" },
-    { name: "test", path: "/test" }
+    { name: "Video 1", path: "/videos/video1.mp4", type: "mp4", size: "20MB", time: "10:00" },
+    { name: "Video 2", path: "/videos/video2.mp4", type: "mp4", size: "30MB", time: "15:00" }
 ]
 </script>
