@@ -153,6 +153,7 @@ struct Video {
     hash: String,
     path: String,
     record: String,
+    type_: String,
     size: String,
 }
 
@@ -171,7 +172,7 @@ async fn get_list(state: tauri::State<'_, GetState>, offset: usize) -> Result<Ve
     let video_iter = stmt
         .query_map([offset as i64], |row| {
             let hash = row.get(0)?;
-            let path = row.get(1)?;
+            let path: String = row.get(1)?;
             let record = row.get(2)?;
             let size = std::fs::metadata(&path)
                 .map(|metadata| {
@@ -192,11 +193,17 @@ async fn get_list(state: tauri::State<'_, GetState>, offset: usize) -> Result<Ve
                     }
                 })
                 .unwrap_or_else(|_| "UNKNOWN".to_string());
+            let type_ = (&path)
+                .split('.')
+                .last()
+                .map(|s| s.to_uppercase())
+                .unwrap_or_else(|| "UNKNOWN".to_string());
 
             Ok(Video {
                 hash,
                 path,
                 size,
+                type_,
                 record,
             })
         })
