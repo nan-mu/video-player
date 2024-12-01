@@ -153,12 +153,12 @@ struct Video {
     hash: String,
     path: String,
     record: String,
+    size: String,
 }
 
 struct GetState {
     db: std::sync::Arc<tokio::sync::Mutex<rusqlite::Connection>>,
 }
-// remember to call `.manage(MyState::default())`
 #[tauri::command]
 async fn get_list(state: tauri::State<'_, GetState>, offset: usize) -> Result<Vec<Video>, String> {
     let db = state.db.lock().await;
@@ -170,10 +170,34 @@ async fn get_list(state: tauri::State<'_, GetState>, offset: usize) -> Result<Ve
 
     let video_iter = stmt
         .query_map([offset as i64], |row| {
+            let hash = row.get(0)?;
+            let path = row.get(1)?;
+            let record = row.get(2)?;
+            let size = std::fs::metadata(&path)
+                .map(|metadata| {
+                    let size = metadata.len();
+                    if size < 1024 {
+                        format!("{} B", size)
+                    } else if size < 1024 * 1024 {
+                        format!("{:.2} KB", size as f64 / 1024.0)
+                    } else if size < 1024 * 1024 * 1024 {
+                        format!("{:.2} MB", size as f64 / (1024.0 * 1024.0))
+                    } else if size < 1024 * 1024 * 1024 * 1024 {
+                        format!("{:.2} GB", size as f64 / (1024.0 * 1024.0 * 1024.0))
+                    } else {
+                        format!(
+                            "{:.2} TB",
+                            size as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0)
+                        )
+                    }
+                })
+                .unwrap_or_else(|_| "UNKNOWN".to_string());
+
             Ok(Video {
-                hash: row.get(0)?,
-                path: row.get(1)?,
-                record: row.get(2)?,
+                hash,
+                path,
+                size,
+                record,
             })
         })
         .map_err(|e| e.to_string())?;
