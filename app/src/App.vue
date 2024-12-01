@@ -33,7 +33,13 @@
 
         <header class="bg-white shadow">
             <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                <h1 class="text-3xl font-bold tracking-tight text-gray-900">最近打开的项目</h1>
+                <div class="flex justify-between items-center">
+                    <h1 class="text-3xl font-bold tracking-tight text-gray-900">最近打开的项目</h1>
+                    <button @click="handleButtonClick"
+                        class="bg-blue-500 text-white p-2 rounded-full flex items-center justify-center">
+                        <PlusIcon class="size-4" aria-hidden="true" />
+                    </button>
+                </div>
             </div>
         </header>
         <main>
@@ -43,20 +49,15 @@
                 :title="item.title"
                 :thumbnail="item.thumbnail"
                 :url="item.url" -->
-                <videoItem v-for="(item, index) in videoItems" 
-                    :key="index" 
-                    :name="item.name" 
-                    :path="item.path"
-                    :type="item.type"
-                    :size="item.size"
-                    :time="item.time"
-                class="mb-5" />
+                <videoItem v-for="(item, index) in videoItems" :key="index" :name="item.name" :path="item.path"
+                    :type="item.type" :size="item.size" :time="item.time" class="mb-5" />
             </div>
         </main>
     </div>
 </template>
 
 <script setup>
+import { PlusIcon } from '@heroicons/vue/20/solid'
 import { Disclosure } from '@headlessui/vue'
 import videoItem from './components/videoItem.vue';
 
@@ -64,4 +65,39 @@ const videoItems = [
     { name: "Video 1", path: "/videos/video1.mp4", type: "mp4", size: "20MB", time: "10:00" },
     { name: "Video 2", path: "/videos/video2.mp4", type: "mp4", size: "30MB", time: "15:00" }
 ]
+
+import { open } from '@tauri-apps/plugin-dialog';
+// Function to open file dialog
+const openFileDialog = async () => {
+    const file = await open({
+        multiple: false,
+        directory: false,
+        defaultPath: '~/Videos',
+        filters: [
+            {
+                name: 'Videos',
+                extensions: ['mp4', 'avi', 'mkv', 'mov', 'wmv']
+            }
+        ]
+    });
+    console.log(file);
+};
+
+// Add the function to the button's click event
+const handleButtonClick = () => {
+    if (window.__TAURI__) {
+        openFileDialog();
+    } else {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'video/*';
+        input.onchange = (event) => {
+            const file = event.target.files[0];
+            console.log(file);
+        };
+        input.click();
+    }
+};
+
+
 </script>
