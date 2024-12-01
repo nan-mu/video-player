@@ -43,7 +43,11 @@
                 :title="item.title"
                 :thumbnail="item.thumbnail"
                 :url="item.url" -->
-                <videoItem v-for="(item, index) in videoItems" :key="index" class="mb-5" />
+                <videoItem v-for="(item, index) in videoItems" 
+                    :key="index" 
+                    :video_name="item.name" 
+                    :file_name="item.path"
+                class="mb-5" />
             </div>
         </main>
     </div>
