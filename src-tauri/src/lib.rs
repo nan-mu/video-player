@@ -30,13 +30,14 @@ pub fn run() {
                 tokio::spawn(async move {
                     handle_record(rx, db_update).await;
                 });
-                app.manage(AppState {
+                app.manage(UpdateState {
                     tx: std::sync::Arc::new(tx),
                 });
+                app.manage(GetState { db });
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![update_record])
+        .invoke_handler(tauri::generate_handler![update_record, get_list])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
             error!("tauri运行时错误: {e}");
@@ -44,12 +45,12 @@ pub fn run() {
         });
 }
 
-struct AppState {
+struct UpdateState {
     tx: std::sync::Arc<tokio::sync::mpsc::Sender<(String, String, String)>>,
 }
 #[tauri::command]
 async fn update_record(
-    state: tauri::State<'_, AppState>,
+    state: tauri::State<'_, UpdateState>,
     hash: String,
     path: String,
     recode: String,
@@ -145,4 +146,42 @@ fn create_db<P: AsRef<std::path::Path>>(db_path: P) -> rusqlite::Connection {
         panic!("缺失关键文件");
     });
     conn
+}
+
+#[derive(serde::Serialize)]
+struct Video {
+    hash: String,
+    path: String,
+    record: String,
+}
+
+struct GetState {
+    db: std::sync::Arc<tokio::sync::Mutex<rusqlite::Connection>>,
+}
+// remember to call `.manage(MyState::default())`
+#[tauri::command]
+async fn get_list(state: tauri::State<'_, GetState>, offset: usize) -> Result<Vec<Video>, String> {
+    let db = state.db.lock().await;
+    let mut stmt = db
+        .prepare(
+            "SELECT hash, path, record FROM Video ORDER BY modified_time DESC LIMIT 5 OFFSET ?1",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let video_iter = stmt
+        .query_map([offset as i64], |row| {
+            Ok(Video {
+                hash: row.get(0)?,
+                path: row.get(1)?,
+                record: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut videos = Vec::new();
+    for video in video_iter {
+        videos.push(video.map_err(|e| e.to_string())?);
+    }
+
+    Ok(videos)
 }
