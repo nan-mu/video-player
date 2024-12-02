@@ -12,11 +12,6 @@
     </header>
     <main>
         <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <!-- Your content -->
-            <!-- :key="index"
-                :title="item.title"
-                :thumbnail="item.thumbnail"
-                :url="item.url" -->
             <videoItem v-for="(item, index) in videoItems" :key="index" :name="item.name" :path="item.path"
                 :type="item.type" :size="item.size" :time="item.time" class="mb-5" />
         </div>
