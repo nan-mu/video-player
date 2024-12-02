@@ -64,20 +64,16 @@ const handleButtonClick = () => {
         input.type = 'file';
         input.accept = 'video/*';
         input.multiple = false;
-        input.onchange = (event) => {
-            const file = event.target.files[0];
-            console.log(file);
-        };
         input.click();
         input.onchange = (event) => {
             const file = event.target.files[0];
             let path = URL.createObjectURL(file);
-            console.log(path);
-            emits('play-video', path);
+            let type = file.type;
+            console.log("path: " + path);
+            console.log("type: " + type);
+            emits('play-video', { type, path });
         };
-    }
-
+    };
 };
-
 
 </script>

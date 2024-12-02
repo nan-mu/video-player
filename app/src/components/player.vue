@@ -1,44 +1,73 @@
 <template>
     <div>
-        <video ref="videoPlayer" id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" width="640"
-            height="264"></video>
+        <!-- <video ref="videoPlayer" id="videoPlayer" class="video-js vjs-default-skin" controls preload="auto" width="640"
+            height="264">
+        </video> -->
+        <!-- :volume="0.6" @mounted="..." @ready="..." @play="..."
+            @pause="..." @ended="..." @seeking="..." -->
+        <video-player ref="Player" class="video-player vjs-custom-skin" :options="videoOptions"></video-player>
     </div>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { VideoPlayer } from '@videojs-player/vue'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-    src: {
+    path: {
+        type: String,
+        required: true
+    },
+    type: {
         type: String,
         required: true
     }
 })
 
-const videoPlayer = ref(null)
+const Player = ref(null)
 let player = null
 
-onMounted(() => {
-    player = videojs(videoPlayer.value, {
-        sources: [{
-            src: props.src,
-            type: 'video/mp4'
-        }]
-    })
+function onPlayerPlay() {
+    console.log('Video is playing')
+}
 
-    player.on('loadedmetadata', () => {
-        if (props.startTime > 0) {
-            player.currentTime(props.startTime)
+function onPlayerPause() {
+    console.log('Video is paused')
+}
+
+function onPlayerEnded() {
+    console.log('Video has ended')
+}
+
+const videoOptions = {
+    autoplay: false,
+    controls: true,
+    sources: [
+        {
+            src: props.path,
+            type: props.type
         }
-    })
+    ]
+}
 
-    player.on('timeupdate', () => {
-        const currentTime = player.currentTime()
-        console.log('Current Time:', currentTime)
-        // 你可以在这里处理每秒获取视频观看进度的逻辑
-    })
+onMounted(() => {
+    // console.log('Video path: ' + props.path);
+    // console.log('Video type: ' + props.type);
+    // player = videojs(Player.value, {
+    //     autoplay: false,
+    //     controls: true,
+    //     sources: [
+    //         {
+    //             src: props.path,
+    //             type: props.type
+    //         }
+    //     ]
+    // })
+    // player.on('play', onPlayerPlay)
+    // player.on('pause', onPlayerPause)
+    // player.on('ended', onPlayerEnded)
 })
 
 onBeforeUnmount(() => {
@@ -46,10 +75,11 @@ onBeforeUnmount(() => {
         player.dispose()
     }
 })
+
 </script>
 
 <style scoped>
-.video-js {
+.video-player {
     width: 100%;
     height: auto;
 }
