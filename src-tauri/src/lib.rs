@@ -1,8 +1,10 @@
-use log::{debug, error};
+use log::{debug, error, info};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -27,7 +29,7 @@ pub fn run() {
                 debug!("初始化观看记录处理线程");
                 let (tx, rx) = tokio::sync::mpsc::channel(32);
                 let db_update = db.clone();
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     handle_record(rx, db_update).await;
                 });
                 app.manage(UpdateState {
@@ -46,14 +48,14 @@ pub fn run() {
 }
 
 struct UpdateState {
-    tx: std::sync::Arc<tokio::sync::mpsc::Sender<(String, String, String)>>,
+    tx: std::sync::Arc<tokio::sync::mpsc::Sender<(String, String, f64)>>,
 }
 #[tauri::command]
 async fn update_record(
     state: tauri::State<'_, UpdateState>,
     hash: String,
     path: String,
-    recode: String,
+    recode: f64,
 ) -> Result<(), String> {
     let tx = state.tx.clone();
     tx.send((hash, path, recode)).await.map_err(|e| {
@@ -65,20 +67,21 @@ async fn update_record(
 
 /// 更新数据库内视频的观看记录，格式为时间戳，这个等前端写出来看看什么格式
 async fn handle_record(
-    mut rx: tokio::sync::mpsc::Receiver<(String, String, String)>,
+    mut rx: tokio::sync::mpsc::Receiver<(String, String, f64)>,
     db: std::sync::Arc<tokio::sync::Mutex<rusqlite::Connection>>,
 ) {
     while let Some((hash, path, record)) = rx.recv().await {
         if hash.is_empty() {
             let hash = calculate_file_hash(&path).await.unwrap_or_else(|e| {
-                error!("计算文件哈希失败: {}", e);
+                error!("计算文件 {path} 哈希失败: {}", e);
                 "NOHASH".to_string()
             });
             let db = db.lock().await;
+            let modified_time = chrono::Local::now().to_rfc3339();
             db.execute(
-                "INSERT INTO Video (hash, path, record) VALUES (?1, ?2, ?3) \
-                ON CONFLICT(hash) DO UPDATE SET path = excluded.path, record = excluded.record;",
-                rusqlite::params![hash, path, record],
+                "INSERT INTO Video (hash, path, record, modified_time) VALUES (?1, ?2, ?3, ?4) \
+                ON CONFLICT(hash) DO UPDATE SET path = excluded.path, record = excluded.record, modified_time = excluded.modified_time;",
+                rusqlite::params![hash, path, record, modified_time],
             )
             .unwrap_or_else(|e| {
                 error!("插入新视频观看记录失败: {}", e);
@@ -126,8 +129,9 @@ async fn calculate_file_hash(file_path: &str) -> std::io::Result<String> {
     Ok(format!("{:x}", result))
 }
 
-fn create_db<P: AsRef<std::path::Path>>(db_path: P) -> rusqlite::Connection {
+fn create_db<P: AsRef<std::path::Path> + std::fmt::Debug>(db_path: P) -> rusqlite::Connection {
     use rusqlite::Connection;
+    info!("db_path: {db_path:?}");
     // 如果数据库文件不存在，则创建
     let conn = Connection::open(db_path).unwrap_or_else(|err| {
         error!("无法创建数据库文件: {}", err);
@@ -137,7 +141,8 @@ fn create_db<P: AsRef<std::path::Path>>(db_path: P) -> rusqlite::Connection {
         "CREATE TABLE IF NOT EXISTS Video (
                     hash TEXT PRIMARY KEY,
                     path TEXT NOT NULL,
-                    record TEXT
+                    record TEXT,
+                    modified_time TEXT
                 );",
         [],
     )

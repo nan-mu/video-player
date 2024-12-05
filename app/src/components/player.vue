@@ -37,23 +37,22 @@ const videoOptions = {
 
 onMounted(async () => {
     try {
-        let response = await invoke('update_record', {
+        await invoke('update_record', {
             hash: '',
             path: props.path,
             recode: 0.0
         });
-        console.log('Response:', response);
     } catch (error) {
         console.error('Error:', error);
     }
 
-    const player = playerRef.value?.player;
+    // const player = playerRef.value?.player;
 
-    if (player) {
-        setInterval(() => {
-            console.log(`Current Time: ${player.currentTime()}`);
-        }, 1000);
-    }
+    // if (player) {
+    //     setInterval(() => {
+    //         console.log(`Current Time: ${player.currentTime()}`);
+    //     }, 1000);
+    // }
 });
 
 </script>

@@ -21,13 +21,32 @@
 <script setup>
 import { PlusIcon } from '@heroicons/vue/20/solid'
 import { open } from '@tauri-apps/plugin-dialog';
+import { onMounted, ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core';
+import VideoItem from './VideoItem.vue'; // 确保正确导入 VideoItem 组件
 
 const emits = defineEmits(['play-video'])
+const videoItems = ref([]);
 
-const videoItems = [
-    { name: "Video 1", path: "/videos/video1.mp4", type: "mp4", size: "20MB", time: "10:00" },
-    { name: "Video 2", path: "/videos/video2.mp4", type: "mp4", size: "30MB", time: "15:00" }
-]
+onMounted(async () => {
+    try {
+        let response = await invoke('get_list', {
+            offset: 0,
+        });
+        for (const item of response) {
+            videoItems.value.push({
+                name: item.path.split('\\').pop(),
+                path: item.path,
+                type: item.type_,
+                size: item.size,
+                time: item.record
+            });
+        }
+        console.log('Response:', videoItems.value[0]);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+})
 
 // Function to open file dialog
 const openFileDialog = async () => {

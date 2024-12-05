@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "~2",
+    "@tauri-apps/plugin-fs": "~2"
+  }
+}
