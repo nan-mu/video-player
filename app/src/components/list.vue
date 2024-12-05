@@ -20,8 +20,7 @@
 
 <script setup>
 import { PlusIcon } from '@heroicons/vue/20/solid'
-import videoItem from './videoItem.vue';
-import { defineEmits } from 'vue'
+import { open } from '@tauri-apps/plugin-dialog';
 
 const emits = defineEmits(['play-video'])
 
@@ -30,7 +29,6 @@ const videoItems = [
     { name: "Video 2", path: "/videos/video2.mp4", type: "mp4", size: "30MB", time: "15:00" }
 ]
 
-import { open } from '@tauri-apps/plugin-dialog';
 // Function to open file dialog
 const openFileDialog = async () => {
     const file = await open({
@@ -48,13 +46,9 @@ const openFileDialog = async () => {
     // console.log(file);
 };
 
-// Add the function to the button's click event
-const handleButtonClick = () => {
-    if (window.__TAURI__) {
-        openFileDialog().await().then((result) => {
-            emits('play-video', result);
-        });
-    } else {
+const handleButtonClick = async () => {
+    try {
+        let path = await openFileDialog();
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'video/*';
@@ -62,13 +56,15 @@ const handleButtonClick = () => {
         input.click();
         input.onchange = (event) => {
             const file = event.target.files[0];
-            let path = URL.createObjectURL(file);
+            let url = URL.createObjectURL(file);
             let type = file.type;
-            console.log("path: " + path);
-            console.log("type: " + type);
-            emits('play-video', { type, path });
+            let res = { url, path, type };
+            console.log(res);
+            emits('play-video', res);
         };
-    };
+    } catch (error) {
+        console.error('Error selecting file:', error);
+    }
 };
 
 </script>

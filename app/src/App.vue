@@ -25,8 +25,8 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-function handlePlayVideo({ path, type }) {
+function handlePlayVideo({ url, path, type }) {
     // console.log(res);
-    router.push({ path: '/player', query: { src: path, type: type } });
+    router.push({ path: '/player', query: { url: url, src: path, type: type, } });
 }
 </script>

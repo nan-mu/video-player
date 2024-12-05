@@ -4,7 +4,7 @@ import player from './components/player.vue'
 
 const routes = [
     { path: '/', name: 'home', component: List },
-    { path: '/player', component: player, props: route => ({ path: route.query.src, type: route.query.type }) }
+    { path: '/player', component: player, props: route => ({ path: route.query.src, type: route.query.type, url: route.query.url }) }
 ]
 
 const router = createRouter({
